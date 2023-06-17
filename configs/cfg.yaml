@@ -1,0 +1,3 @@
+Config:
+  listenAddress: "/sock/server.sock" // YOUR SOCKET PATH
+  msgChanBufferSize: 10

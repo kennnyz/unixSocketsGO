@@ -1,0 +1,4 @@
+{
+  "listenAddress": "D:\\unixGoWB\\unixSocketsGO\\sock\\server.sock",
+  "msgChanBufferSize": 10
+}
