@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	configPath = "configs/config.json"
+	configPath = "D:\\unixGoWB\\unixSocketsGO\\configs\\config.json"
 )
 
 func main() {
@@ -33,15 +33,20 @@ func main() {
 		}
 	}()
 
-	// Cleanup the sockfile.
+	// Cleanup the socket file.
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-c
+		err := server.Close()
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 		os.Remove(cfg.ListenAddress)
-		os.Exit(1)
+		os.Exit(0)
 	}()
 	wg.Wait()
 }

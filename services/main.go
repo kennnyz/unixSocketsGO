@@ -7,6 +7,9 @@ const (
 )
 
 func main() {
-	client := client2.NewClient(socketPath)
-	client.Run()
+	client := client2.NewClient(socketPath, "Telegram Alerts")
+	err := client.ConnectAndWriteToServer()
+	if err != nil {
+		return
+	}
 }

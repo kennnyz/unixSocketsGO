@@ -12,7 +12,9 @@ import (
 
 // Client Получает и записывает сообщения
 type Client struct {
-	SocketPath string
+	serviceName string
+	socketPath  string
+	conn        net.Conn
 }
 
 type Message struct {
@@ -20,24 +22,41 @@ type Message struct {
 	Message string `json:"message"`
 }
 
-func NewClient(socketAddr string) *Client {
+func NewClient(socketAddr, serviceName string) *Client {
 	return &Client{
-		socketAddr,
+		socketPath:  socketAddr,
+		serviceName: serviceName,
 	}
 }
 
-func (c *Client) Run() {
-	// Установка соединения с сервером через UNIX-сокет
-	conn, err := net.Dial("unix", c.SocketPath)
+func (c *Client) writeToServer(msg Message) error {
+	// Кодирование структуры в JSON
+	jsonData, err := json.Marshal(msg)
 	if err != nil {
-		log.Fatal("Failed to connect to server:", err)
+		return fmt.Errorf("failed to encode message: %v", err)
+
 	}
+	// Отправка JSON-сообщения на сервер
+	_, err = c.conn.Write(jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to send message to server: %v", err)
+	}
+	return nil
+}
+
+// TODO может это вообще не надо? убрать и писать в main (от туда где создается Client)
+
+func (c *Client) ConnectAndWriteToServer() error {
+	// Установка соединения с сервером через UNIX-сокет
+	conn, err := net.Dial("unix", c.socketPath)
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %v", err)
+	}
+	c.conn = conn
 	defer conn.Close()
 
 	// Чтение ввода пользователя
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter service name: ")
-	from, _ := reader.ReadString('\n')
 
 	for {
 		// Запрос ввода отправителя и сообщения
@@ -46,23 +65,11 @@ func (c *Client) Run() {
 
 		// Создание экземпляра структуры Message
 		msg := Message{
-			From:    strings.TrimSpace(from),
+			From:    strings.TrimSpace(c.serviceName),
 			Message: strings.TrimSpace(message),
 		}
 
-		// Кодирование структуры в JSON
-		jsonData, err := json.Marshal(msg)
-		if err != nil {
-			log.Println("Failed to encode message:", err)
-			continue
-		}
-
-		// Отправка JSON-сообщения на сервер
-		_, err = conn.Write(jsonData)
-		if err != nil {
-			log.Println("Failed to send message to server:", err)
-			continue
-		}
+		err := c.writeToServer(msg)
 
 		// Чтение ответа от сервера
 		buffer := make([]byte, 2048)
@@ -80,4 +87,5 @@ func (c *Client) Run() {
 			break
 		}
 	}
+	return nil
 }

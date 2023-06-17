@@ -10,25 +10,25 @@ import (
 )
 
 type Server struct {
-	ListenAddress string
-	Listener      net.Listener
+	listenAddress string
+	listener      net.Listener
 	MsgChan       chan client.Message
 }
 
 func NewServer(listenAddr string) *Server {
 	return &Server{
-		ListenAddress: listenAddr,
+		listenAddress: listenAddr,
 		MsgChan:       make(chan client.Message, 10),
 	}
 }
 
 func (s *Server) Start() error {
-	listener, err := net.Listen("unix", s.ListenAddress)
+	listener, err := net.Listen("unix", s.listenAddress)
 	if err != nil {
 		return err
 	}
 	log.Println("Unix server is ALIVE!")
-	s.Listener = listener
+	s.listener = listener
 
 	go s.AcceptLoop()
 
@@ -37,7 +37,7 @@ func (s *Server) Start() error {
 
 func (s *Server) AcceptLoop() {
 	for {
-		conn, err := s.Listener.Accept()
+		conn, err := s.listener.Accept()
 		if err != nil {
 			log.Println("accept error ", err)
 			continue
@@ -62,17 +62,30 @@ func (s *Server) ReadLoop(conn net.Conn) {
 		s.MsgChan <- msg
 		_, err = conn.Write([]byte(respProcess(msg.Message)))
 		if err != nil {
-			log.Println(err)
+			fmt.Fprintf(conn, respProcess(msg.Message))
 			return
 		}
 	}
 }
 
-func (s *Server) Close() {
-	close(s.MsgChan)
-	s.Listener.Close()
+func (s *Server) Close() error {
+	// check if chan already closed
+	select {
+	case _, ok := <-s.MsgChan:
+		if ok {
+			close(s.MsgChan)
+		}
+	default:
+	}
+
+	err := s.listener.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func respProcess(msg string) string {
+	// TODO implement request process between services
 	return fmt.Sprintf("Your message successfully has been received. Processed message is:  %s", strings.ToUpper(msg))
 }
