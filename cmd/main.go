@@ -25,14 +25,6 @@ func main() {
 		return
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range server.MsgChan {
-			log.Printf("%s: %s\n", msg.From, msg.Message)
-		}
-	}()
-
 	// Cleanup the socket file.
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

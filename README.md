@@ -17,52 +17,69 @@ Readme с описанием и примерами
 #### Запуск сервера
 ```go
 func main() {
-	var wg sync.WaitGroup
-	cfg := configs.ReadConfig(configPath)
-
-	server := server.NewServer(cfg.ListenAddress) // инициализация сервера
-	err := server.Start() // запуск сервера
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for msg := range server.MsgChan { // получение сообщений от сервисов
-			log.Printf("%s: %s\n", msg.From, msg.Message)
-		}
-	}()
-
-        // Cleanup the socket file.
-        c := make(chan os.Signal, 1)
-        signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-        wg.Add(1)
-		
-        go func() { // graceful shutdown
-            defer wg.Done()
-            <-c
-            err := server.Close()
-            if err != nil {
-                log.Println(err)
-                os.Exit(1)
-            }
-            os.Remove(cfg.ListenAddress)
-            os.Exit(0)
-        }()
-		
-        wg.Wait()
+    var wg sync.WaitGroup
+    cfg := configs.ReadConfig(configPath)
+    
+    server := server.NewServer(cfg.ListenAddress)
+    err := server.Start()
+    if err != nil {
+        log.Println(err)
+        return
+    }
+    
+    // Cleanup the socket file.
+    c := make(chan os.Signal, 1)
+    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        <-c
+        err := server.Close()
+        if err != nil {
+            log.Println(err)
+            os.Exit(1)
+        }
+        os.Remove(cfg.ListenAddress)
+        os.Exit(0)
+    }()
+    wg.Wait()
 }
 ```
 
 #### Запуск клиента
 ```go
-   func main() {
-        client := client2.NewClient(socketPath, "serviceDesk") 
-        err := client.ConnectAndWriteToServer()
+    func main() {
+        client, err := client2.NewClient(socketPath, "Telegram Alerts")
         if err != nil {
             return
+        }
+        
+        defer client.Conn.Close()
+        
+        reader := bufio.NewReader(os.Stdin)
+        for {
+            // Запрос ввода отправителя и сообщения
+            fmt.Print("Enter your message: ")
+            message, _ := reader.ReadString('\n')
+            
+            // Создание экземпляра структуры Message
+            msg := client2.Message{
+                From:    strings.TrimSpace(client.ServiceName),
+                Message: strings.TrimSpace(message),
+            }
+            
+            err, resp := client.WriteToServer(msg)
+            if err != nil {
+                log.Println(err)
+            }
+            
+            // Вывод ответа от сервера
+            fmt.Println("Server response:", resp)
+            
+            // Проверка условия завершения
+            if strings.TrimSpace(message) == "exit" {
+                break
+            }
         }
 }
 ```
