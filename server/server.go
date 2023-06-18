@@ -37,15 +37,11 @@ func (s *Server) Start(ctx context.Context) error {
 
 	go s.acceptLoop(ctx)
 
-	s.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
 		for msg := range s.msgChan {
 			log.Printf("%s: %s\n", msg.From, msg.Message)
 		}
 	}()
-
-	s.wg.Wait()
 
 	return nil
 }
@@ -95,7 +91,7 @@ func (s *Server) readLoop(ctx context.Context, conn net.Conn) {
 	}
 }
 
-func (s *Server) Close() error {
+func (s *Server) Close(ctx context.Context) error {
 	// check if chan already closed
 	select {
 	case _, ok := <-s.msgChan:
@@ -109,6 +105,7 @@ func (s *Server) Close() error {
 	if err != nil {
 		return err
 	}
+	ctx.Done()
 	return nil
 }
 

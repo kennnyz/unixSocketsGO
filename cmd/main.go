@@ -35,7 +35,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		<-c
-		err := UnixServer.Close()
+		err := UnixServer.Close(ctx)
 		if err != nil {
 			log.Println(err)
 			os.Exit(1)
