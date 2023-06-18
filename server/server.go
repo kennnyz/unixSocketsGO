@@ -78,10 +78,6 @@ func (s *Server) tryRead(conn net.Conn, decoder *json.Decoder) error {
 	var msg client.Message
 	err := decoder.Decode(&msg)
 	if err != nil {
-		err := conn.Close()
-		if err != nil {
-			return err
-		}
 		return fmt.Errorf("decode error: %v", err)
 	}
 	s.msgChan <- msg
