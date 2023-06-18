@@ -9,13 +9,11 @@ import (
 	"log"
 	"net"
 	"strings"
-	"sync"
 )
 
 type Server struct {
 	listenAddress string
 	listener      net.Listener
-	wg            *sync.WaitGroup
 	msgChan       chan client.Message
 }
 
@@ -23,7 +21,6 @@ func NewServer(listenAddr string) *Server {
 	return &Server{
 		listenAddress: listenAddr,
 		msgChan:       make(chan client.Message, 10),
-		wg:            &sync.WaitGroup{},
 	}
 }
 
