@@ -19,8 +19,6 @@ func main() {
 		return
 	}
 
-	defer client.Conn.Close()
-
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		// Запрос ввода отправителя и сообщения
@@ -45,5 +43,9 @@ func main() {
 		if strings.TrimSpace(message) == "exit" {
 			break
 		}
+	}
+	err = client.Close()
+	if err != nil {
+		log.Println(err)
 	}
 }

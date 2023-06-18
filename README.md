@@ -15,7 +15,7 @@ Readme с описанием и примерами
 ### Описание
 
 Реализованы пакеты server и client для взаимодействия через unix сокеты.
-Структура Сервера:
+#### Структура Сервера:
 ```go
 type Server struct {
     listenAddress string // Путь к сокету
@@ -33,6 +33,17 @@ type Server struct {
 функция которая читает сообщения из отдельного подключения, дает response клиенту и отправляет его сообщение в канал msgChan.
 
 -----------------------------------
+
+#### Структура Клиента:
+```go
+type Client struct {
+	ServiceName string
+	socketPath  string
+	conn        net.Conn
+}
+```
+
+Для клиента реализована функция WriteToServer, которая отправляет сообщение на сервер и возвращает ответ от сервера.
 
 
 
@@ -80,8 +91,7 @@ func main() {
         if err != nil {
             return
         }
-        
-        defer client.Conn.Close()
+		
         
         reader := bufio.NewReader(os.Stdin)
         for {
@@ -108,6 +118,11 @@ func main() {
                 break
             }
         }
+		
+    err = client.Close()
+    if err != nil {
+        log.Println(err)
+    }
 }
 ```
 

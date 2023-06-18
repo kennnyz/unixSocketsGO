@@ -10,7 +10,7 @@ import (
 type Client struct {
 	ServiceName string
 	socketPath  string
-	Conn        net.Conn
+	conn        net.Conn
 }
 
 type Message struct {
@@ -25,7 +25,7 @@ func NewClient(socketAddr, serviceName string) (*Client, error) {
 	}
 
 	return &Client{
-		Conn:        conn,
+		conn:        conn,
 		socketPath:  socketAddr,
 		ServiceName: serviceName,
 	}, nil
@@ -39,17 +39,25 @@ func (c *Client) WriteToServer(msg Message) (error, string) {
 
 	}
 	// Отправка JSON-сообщения на сервер
-	_, err = c.Conn.Write(jsonData)
+	_, err = c.conn.Write(jsonData)
 	if err != nil {
 		return fmt.Errorf("failed to send message to server: %v", err), ""
 	}
 
 	// Чтение ответа от сервера
 	buffer := make([]byte, 2048)
-	n, err := c.Conn.Read(buffer)
+	n, err := c.conn.Read(buffer)
 	if err != nil {
 		return fmt.Errorf("failed to receive response from server: %v", err), ""
 	}
 
 	return nil, string(buffer[:n])
+}
+
+func (c *Client) Close() error {
+	err := c.conn.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
