@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/kennnyz/unixGo/configs"
 	"github.com/kennnyz/unixGo/server"
 	"log"
@@ -17,9 +18,11 @@ var (
 func main() {
 	var wg sync.WaitGroup
 	cfg := configs.ReadConfig(configPath)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	server := server.NewServer(cfg.ListenAddress)
-	err := server.Start()
+	UnixServer := server.NewServer(cfg.ListenAddress)
+	err := UnixServer.Start(ctx)
 	if err != nil {
 		log.Println(err)
 		return
@@ -32,7 +35,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		<-c
-		err := server.Close()
+		err := UnixServer.Close()
 		if err != nil {
 			log.Println(err)
 			os.Exit(1)

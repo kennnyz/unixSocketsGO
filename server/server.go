@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/kennnyz/unixGo/client"
+	"io"
 	"log"
 	"net"
 	"strings"
@@ -14,18 +16,18 @@ type Server struct {
 	listenAddress string
 	listener      net.Listener
 	wg            *sync.WaitGroup
-	MsgChan       chan client.Message
+	msgChan       chan client.Message
 }
 
 func NewServer(listenAddr string) *Server {
 	return &Server{
 		listenAddress: listenAddr,
-		MsgChan:       make(chan client.Message, 10),
+		msgChan:       make(chan client.Message, 10),
 		wg:            &sync.WaitGroup{},
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	listener, err := net.Listen("unix", s.listenAddress)
 	if err != nil {
 		return err
@@ -33,12 +35,12 @@ func (s *Server) Start() error {
 	log.Println("Unix server is ALIVE!")
 	s.listener = listener
 
-	go s.AcceptLoop()
+	go s.acceptLoop(ctx)
 
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-		for msg := range s.MsgChan {
+		for msg := range s.msgChan {
 			log.Printf("%s: %s\n", msg.From, msg.Message)
 		}
 	}()
@@ -48,7 +50,7 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) AcceptLoop() {
+func (s *Server) acceptLoop(ctx context.Context) {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -57,29 +59,38 @@ func (s *Server) AcceptLoop() {
 		}
 
 		log.Println("New connection to the server: ", conn.RemoteAddr().String())
-		go s.ReadLoop(conn)
+		go s.readLoop(ctx, conn)
 	}
 }
 
-func (s *Server) ReadLoop(conn net.Conn) {
+func (s *Server) readLoop(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
-	// buf := make([]byte, 2048) // Можно получать так.
 	decoder := json.NewDecoder(conn)
 	for {
-		var msg client.Message
-		err := decoder.Decode(&msg)
-		if err != nil {
-			log.Println("decode error:", err)
+		select {
+		case <-ctx.Done():
+			// Контекст завершен, выходим из цикла
 			return
-		}
-		s.MsgChan <- msg
-		_, err = conn.Write([]byte(respProcess(msg.Message)))
-		if err != nil {
-			fmt.Fprintf(conn, respProcess(msg.Message))
-			return
-		}
-		if msg.Message == "exit" {
-			return
+		default:
+			var msg client.Message
+			err := decoder.Decode(&msg)
+			if err != nil {
+				if err == io.EOF {
+					// Пользователь закрыл соединение
+					return
+				}
+				log.Println("decode error:", err)
+				return
+			}
+			s.msgChan <- msg
+			_, err = fmt.Fprintf(conn, respProcess(msg.Message))
+			if err != nil {
+				log.Println("Error sending response to client: ", err)
+				return
+			}
+			if msg.Message == "exit" {
+				return
+			}
 		}
 	}
 }
@@ -87,9 +98,9 @@ func (s *Server) ReadLoop(conn net.Conn) {
 func (s *Server) Close() error {
 	// check if chan already closed
 	select {
-	case _, ok := <-s.MsgChan:
+	case _, ok := <-s.msgChan:
 		if ok {
-			close(s.MsgChan)
+			close(s.msgChan)
 		}
 	default:
 	}
