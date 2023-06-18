@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kennnyz/unixGo/client"
-	"io"
 	"log"
 	"net"
 	"strings"
@@ -79,9 +78,9 @@ func (s *Server) tryRead(conn net.Conn, decoder *json.Decoder) error {
 	var msg client.Message
 	err := decoder.Decode(&msg)
 	if err != nil {
-		if err == io.EOF {
-			// Пользователь закрыл соединение
-			return nil
+		err := conn.Close()
+		if err != nil {
+			return err
 		}
 		return fmt.Errorf("decode error: %v", err)
 	}
