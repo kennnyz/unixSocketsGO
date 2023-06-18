@@ -65,27 +65,35 @@ func (s *Server) readLoop(ctx context.Context, conn net.Conn) {
 			// Контекст завершен, выходим из цикла
 			return
 		default:
-			var msg client.Message
-			err := decoder.Decode(&msg)
+			err := s.tryRead(conn, decoder)
 			if err != nil {
-				if err == io.EOF {
-					// Пользователь закрыл соединение
-					return
-				}
-				log.Println("decode error:", err)
-				return
-			}
-			s.msgChan <- msg
-			_, err = fmt.Fprintf(conn, respProcess(msg.Message))
-			if err != nil {
-				log.Println("Error sending response to client: ", err)
-				return
-			}
-			if msg.Message == "exit" {
+				log.Println(err)
 				return
 			}
 		}
 	}
+}
+
+// Паттерн try/must - держит в себе всю функциональность получения и отправке ответа и возвращает ошибку в ее случае
+func (s *Server) tryRead(conn net.Conn, decoder *json.Decoder) error {
+	var msg client.Message
+	err := decoder.Decode(&msg)
+	if err != nil {
+		if err == io.EOF {
+			// Пользователь закрыл соединение
+			return nil
+		}
+		return fmt.Errorf("decode error: %v", err)
+	}
+	s.msgChan <- msg
+	_, err = fmt.Fprintf(conn, respProcess(msg.Message))
+	if err != nil {
+		return fmt.Errorf("error sending response to client: %v", err)
+	}
+	if msg.Message == "exit" {
+		return nil
+	}
+	return nil
 }
 
 func (s *Server) Close(ctx context.Context) error {
