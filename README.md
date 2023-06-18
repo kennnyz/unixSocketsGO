@@ -12,6 +12,31 @@ Readme с описанием и примерами
 Размещение на GitHub в публичной репе
 Использовать можно только стандартные пакеты go
 
+### Описание
+
+Реализованы пакеты server и client для взаимодействия через unix сокеты.
+Структура Сервера:
+```go
+type Server struct {
+    listenAddress string // Путь к сокету
+    listener      net.Listener // Слушатель
+    msgChan       chan client.Message // Канал куда кидаются все сообщения, которые приходят на сервер
+}
+```
+
+Для сервера я реализовал 2 основные функции которые работают с клиентами это - acceptLoop и readLoop.
+
+#### acceptLoop
+функция которая принимает новые подключения и создает для них отдельные горутины readLoop, которые будут читать сообщения из сокета.
+
+#### readLoop 
+функция которая читает сообщения из отдельного подключения, дает response клиенту и отправляет его сообщение в канал msgChan.
+
+-----------------------------------
+
+
+
+
 ### Пример использования
 
 #### Запуск сервера
@@ -90,11 +115,11 @@ func main() {
 #### Вывод в консоль
 ```
 2023/06/18 00:36:55 Unix server is ALIVE!
-2023/06/18 00:37:37 New connection to the server:  @
-2023/06/18 00:37:50 serviceDesk: hello world
+2023/06/18 00:37:37 New connection to the server:  @ // Подключение клиента
+2023/06/18 00:37:50 serviceDesk: hello world // Отправка сообщения сервиса serviceDesk
 2023/06/18 00:39:06 serviceDesk: alert all users that they are super
-2023/06/18 00:39:20 New connection to the server:  @
-2023/06/18 00:39:47 Telegram Alerts: All users has been notified!
+2023/06/18 00:39:20 New connection to the server:  @ // Подключение клиента
+2023/06/18 00:39:47 Telegram Alerts: All users has been notified! // Отправка сообщения сервиса Telegram Alerts
 ```
 
 
