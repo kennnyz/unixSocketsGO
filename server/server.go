@@ -51,7 +51,7 @@ func (s *Server) acceptLoop(ctx context.Context) {
 			continue
 		}
 
-		log.Println("New connection to the server: ", conn.RemoteAddr().String())
+		log.Println("New connection to the server: ", conn.LocalAddr().String())
 		go s.readLoop(ctx, conn)
 	}
 }
